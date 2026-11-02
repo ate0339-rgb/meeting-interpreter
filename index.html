@@ -733,11 +733,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       </ol>
       <div class="row" style="justify-content:flex-start"><a class="chip primary" id="gpt-login" target="_blank" rel="noopener" href="#">ChatGPT로 계속하기</a></div>
       <input class="paste" id="gpt-paste" placeholder="http://127.0.0.1:1455/auth/callback?code=…" autocomplete="off" inputmode="url">
-      <div class="row" style="justify-content:flex-start"><button class="chip" id="gpt-done">연결</button></div>
+      <div class="row" style="justify-content:flex-start"><button class="chip" id="gpt-done">연결</button><button class="chip" id="gpt-other">다른 계정·워크스페이스로</button></div>
+      <div class="note"><b>“조직에서 이 앱에 접근 권한을 부여하지 않았습니다”</b>가 뜨면 학교·회사 워크스페이스가 이 앱을 막아 둔 거예요. <b>다른 계정·워크스페이스로</b>를 누른 뒤, 로그인할 때 <b>개인 워크스페이스</b>(Plus/Pro)를 고르거나 개인 계정으로 로그인하세요.</div>
       <div class="note">${prefs.gptClientId ? '이전에 등록한 계정이라 두 번째부터는 계정 선택만 하면 돼요. ' : ''}보안을 위해 로그인 토큰은 저장하지 않아요. 앱을 새로 열면 다시 연결해 주세요.</div>`;
     const a = $('#gpt-login');
     a.setAttribute('aria-disabled', 'true');
     a.href = await gptAuthUrl(); a.removeAttribute('aria-disabled');
+    // new registration with no account hints, so the sign-in shows account and workspace choice again
+    $('#gpt-other').onclick = async () => {
+      ['gptClientId', 'gptEmail', 'gptSub'].forEach(k => delete prefs[k]); savePrefs();
+      try { localStorage.removeItem(PENDING) } catch {}
+      await renderGptBox(); toast('새로 로그인할 준비가 됐어요. ChatGPT로 계속하기를 눌러 주세요.');
+    };
     $('#gpt-done').onclick = async () => {
       const b = $('#gpt-done'); b.disabled = true; b.textContent = '연결 중…';
       try { await gptFinish($('#gpt-paste').value); toast('ChatGPT 연결 완료'); renderGptBox(); renderTags() }
