@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F2F4F6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="미팅 통역">
+<title>미팅 통역 노트</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: one-screen phone app — English source on top, Korean below, controls pinned to the bottom edge */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --ink:#17212B; --muted:#6B7783; --line:#DDE2E7;
+  --rec:#D4472E; --ko:#1E6A86; --hl:#FFF1C9; --hl-ink:#5A4300; --ok:#2F7D4F;
+  --f-en:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-ko:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --fs:17px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11171D; --surface:#19212A; --ink:#E6EBF0; --muted:#8A96A2; --line:#2A3540;
+    --rec:#F0664B; --ko:#6CC0DD; --hl:#3A3220; --hl-ink:#F5DE9C; --ok:#6CCB8F; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11171D; --surface:#19212A; --ink:#E6EBF0; --muted:#8A96A2; --line:#2A3540;
+  --rec:#F0664B; --ko:#6CC0DD; --hl:#3A3220; --hl-ink:#F5DE9C; --ok:#6CCB8F; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ko);font-size:15px;
+  -webkit-tap-highlight-color:transparent;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--ko);outline-offset:2px}
+[hidden]{display:none!important}
+
+.app{height:100%;display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px)}
+.view{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:8px;
+  padding:8px max(10px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px))}
+.top input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);
+  font:600 16px var(--f-ko);padding:4px 0}
+.top input::placeholder{color:var(--muted);font-weight:500}
+.clock{font:500 13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.rec-on .dot{background:var(--rec);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.rec-on .dot{animation:none}}
+.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px}
+.icon svg,.side svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* panes */
+.pane{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--surface);
+  margin:0 max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px));
+  border:1px solid var(--line)}
+.pane.en{border-radius:14px 14px 4px 4px}
+.pane.ko{border-radius:4px 4px 14px 14px;margin-top:6px}
+.pane h2{margin:0;padding:9px 14px 6px;font:500 11px var(--f-mono);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.pane.ko h2{color:var(--ko)}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:2px 14px 14px;overscroll-behavior:contain}
+.seg{display:block;padding:6px 8px;margin:0 -8px;border-radius:8px;line-height:1.5}
+.seg.sel{background:var(--hl);color:var(--hl-ink)}
+.en .seg{font-family:var(--f-en);font-size:var(--fs)}
+.ko .seg{font-family:var(--f-ko);font-size:calc(var(--fs) * .97)}
+.seg time{font:400 10.5px var(--f-mono);color:var(--muted);margin-right:6px;vertical-align:1px}
+.seg.sel time{color:inherit;opacity:.7}
+.w{border-radius:3px;cursor:pointer}
+.w:hover{background:var(--line)}
+.interim{font-family:var(--f-en);font-size:var(--fs);color:var(--muted);font-style:italic;line-height:1.5;padding:6px 0}
+.pending{color:var(--muted)}
+.err{color:var(--rec);font-size:13px}
+.empty{color:var(--muted);font-size:14px;line-height:1.6;padding:10px 0;max-width:34em}
+.empty b{color:var(--ink);font-weight:600}
+
+/* bottom bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px max(20px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+.side{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);min-width:64px;padding:4px}
+.recbtn{width:68px;height:68px;border-radius:50%;border:3px solid var(--rec);display:grid;place-items:center;background:var(--surface)}
+.recbtn i{display:block;width:26px;height:26px;border-radius:50%;background:var(--rec);transition:border-radius .2s,width .2s,height .2s}
+.rec-on .recbtn i{width:22px;height:22px;border-radius:5px}
+.hint{text-align:center;font-size:11.5px;color:var(--muted);padding:0 16px;min-height:16px}
+
+/* history + detail */
+.head{display:flex;align-items:center;gap:8px;
+  padding:12px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.head h1{flex:1;margin:0;font:600 18px var(--f-ko);text-wrap:balance;min-width:0;overflow-wrap:anywhere}
+.back{display:flex;align-items:center;gap:2px;color:var(--ko);font-weight:500;padding:4px 4px 4px 0}
+.list{flex:1;overflow-y:auto;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
+.card{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card strong{font-weight:600;font-size:15px}
+.meta{font:400 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.card p{margin:2px 0 0;font-family:var(--f-en);color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13px}
+.chip.primary{background:var(--ko);border-color:var(--ko);color:var(--surface)}
+.chip.danger{color:var(--rec)}
+.chip:disabled{opacity:.5}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.sec h3{margin:0 0 8px;font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pair{padding:8px 0;border-top:1px solid var(--line)}
+.pair:first-of-type{border-top:0}
+.pair .e{font-family:var(--f-en);font-size:16px;line-height:1.5}
+.pair .k{color:var(--ko);line-height:1.55;margin-top:2px}
+.summary{white-space:pre-wrap;line-height:1.65;font-size:14.5px;overflow-wrap:anywhere}
+.words{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}
+.words dt{font-family:var(--f-en);font-weight:600}
+.words dd{margin:0;color:var(--muted);min-width:0}
+
+/* sheets */
+.scrim{position:fixed;inset:0;background:rgba(10,15,20,.45);z-index:20;display:flex;align-items:flex-end}
+.sheet{width:100%;max-height:88%;overflow-y:auto;background:var(--surface);border-radius:18px 18px 0 0;
+  padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto}
+.sheet h2{margin:0;font:600 17px var(--f-ko)}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.field select,.field input,.paste{font:15px var(--f-ko);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+.field small{line-height:1.5}
+.row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.group{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.group h3{margin:0;font:600 14px var(--f-ko);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.group h3 small{font:400 12px var(--f-ko);color:var(--muted)}
+.steps{margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--muted)}
+.steps b{color:var(--ink);font-weight:600}
+.status{font-size:13px;display:flex;align-items:center;gap:6px}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.note{font-size:12px;color:var(--muted);line-height:1.5}
+.lookup-word{font:600 24px var(--f-en)}
+.lookup-ctx{font-family:var(--f-en);color:var(--muted);font-size:14px;line-height:1.5}
+.lookup-mean{font-size:16px;line-height:1.6;white-space:pre-wrap}
+
+/* ask */
+.sheet.ask{height:88%;gap:10px}
+.ask-head{display:flex;align-items:center;gap:8px}
+.ask-head h2{flex:1}
+.thread{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:88%;padding:9px 12px;border-radius:14px;line-height:1.6;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.q{align-self:flex-end;background:var(--ko);color:var(--surface);border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--bg);border-bottom-left-radius:4px}
+.msg.a.err{color:var(--rec)}
+.ask-row{display:flex;gap:8px;align-items:flex-end}
+.ask-row textarea{flex:1;min-width:0;resize:none;font:15px var(--f-ko);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.quick{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+.quick .chip{white-space:nowrap;flex:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(110px + env(safe-area-inset-bottom,0px));
+  background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:13px;z-index:30;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- LIVE -->
+  <section class="view" id="v-live">
+    <div class="top">
+      <input id="title" placeholder="미팅 제목" autocomplete="off">
+      <span class="clock"><span class="dot"></span><span id="clock">00:00</span></span>
+      <button class="icon" id="btn-new" aria-label="새 미팅" title="새 미팅">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="icon" id="btn-settings-live" aria-label="설정" title="설정">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+    <div class="pane en">
+      <h2><span>English · 들은 내용</span><span id="lang-tag">en-US</span></h2>
+      <div class="scroll" id="en-scroll">
+        <div id="en-list"></div>
+        <div class="interim" id="interim"></div>
+      </div>
+    </div>
+    <div class="pane ko">
+      <h2><span>한국어 번역</span><span id="engine-tag">Google</span></h2>
+      <div class="scroll" id="ko-scroll"><div id="ko-list"></div></div>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="bar">
+      <button class="side" id="btn-history" aria-label="기록 보기">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>기록</button>
+      <button class="recbtn" id="btn-rec" aria-label="녹음 시작"><i></i></button>
+      <button class="side" id="btn-ask" aria-label="질문하기">
+        <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.9c0 1.5-2.2 2-2.2 3.1M12 16.5h.01"/></svg>질문</button>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="v-history" hidden>
+    <div class="head">
+      <button class="back" data-go="live">‹ 녹음</button>
+      <h1>미팅 기록</h1>
+      <button class="chip" id="btn-settings">설정</button>
+    </div>
+    <div class="list" id="history-list"></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section class="view" id="v-detail" hidden>
+    <div class="head">
+      <button class="back" data-go="history">‹ 기록</button>
+      <h1 id="d-title"></h1>
+    </div>
+    <div class="list" id="detail"></div>
+  </section>
+</div>
+
+<!-- settings sheet -->
+<div class="scrim" id="s-settings" hidden>
+  <div class="sheet" role="dialog" aria-label="설정">
+    <h2>설정</h2>
+    <div class="group">
+      <h3>ChatGPT 연결 <small>구독으로 질문·분석·번역</small></h3>
+      <div id="gpt-box"></div>
+    </div>
+    <label class="field">질문·분석에 쓸 AI
+      <select id="opt-ai">
+        <option value="gpt">ChatGPT (구독)</option>
+        <option value="claude">Claude (API 키)</option>
+      </select>
+    </label>
+    <label class="field">실시간 번역
+      <select id="opt-engine">
+        <option value="google">Google 번역 (무료, 가장 빠름)</option>
+        <option value="gpt">ChatGPT (문맥 반영, 구독 사용량 차감)</option>
+        <option value="claude">Claude (문맥 반영, API 키 필요)</option>
+      </select>
+    </label>
+    <label class="field">Claude API 키 (선택)
+      <input id="opt-key" type="password" placeholder="sk-ant-..." autocomplete="off">
+      <small>이 폰의 브라우저에만 저장됩니다. ChatGPT 대신 Claude를 쓰고 싶을 때만 넣으세요.</small>
+    </label>
+    <label class="field">인식할 영어 억양
+      <select id="opt-lang">
+        <option value="en-US">미국 영어 (en-US)</option>
+        <option value="en-GB">영국 영어 (en-GB)</option>
+        <option value="en-AU">호주 영어 (en-AU)</option>
+        <option value="en-IN">인도 영어 (en-IN)</option>
+        <option value="en-CA">캐나다 영어 (en-CA)</option>
+      </select>
+    </label>
+    <label class="field">글자 크기
+      <select id="opt-fs">
+        <option value="15">작게</option>
+        <option value="17">보통</option>
+        <option value="20">크게</option>
+        <option value="23">아주 크게</option>
+      </select>
+    </label>
+    <div class="row"><button class="chip primary" data-close>완료</button></div>
+  </div>
+</div>
+
+<!-- word lookup sheet -->
+<div class="scrim" id="s-word" hidden>
+  <div class="sheet" role="dialog" aria-label="단어 풀이">
+    <div class="lookup-word" id="w-word"></div>
+    <div class="lookup-ctx" id="w-ctx"></div>
+    <div class="lookup-mean" id="w-mean"></div>
+    <div class="row">
+      <button class="chip" data-close>닫기</button>
+      <button class="chip primary" id="w-save">단어장에 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ask sheet -->
+<div class="scrim" id="s-ask" hidden>
+  <div class="sheet ask" role="dialog" aria-label="질문하기">
+    <div class="ask-head">
+      <h2>질문하기</h2>
+      <span class="meta" id="ask-who"></span>
+      <button class="chip" data-close>닫기</button>
+    </div>
+    <div class="thread" id="thread"></div>
+    <div class="tools quick" id="quick">
+      <button class="chip" data-q="최근 1~2분 동안 나온 말을 한국어로 쉽게 풀어서 설명해 줘. 핵심만.">방금 뭐라고 했어?</button>
+      <button class="chip" data-q="최근 5분 내용을 한국어로 3~5줄로 요약해 줘.">최근 5분 요약</button>
+      <button class="chip" data-q="가장 최근에 참석자(특히 나)에게 던져진 질문이나 요청이 있으면 무엇인지 한국어로 설명하고, 내가 바로 말할 수 있는 짧은 영어 답변 예시 2개를 한국어 뜻과 함께 줘.">나한테 물어본 거야?</button>
+      <button class="chip" data-q="지금까지 나온 전문 용어와 어려운 영어 표현을 '영어 — 한국어 뜻(짧은 설명)' 형식으로 정리해 줘.">용어 정리</button>
+      <button class="chip" data-fill="영어로: ">내 말을 영어로</button>
+    </div>
+    <form class="ask-row" id="ask-form">
+      <textarea id="ask-input" rows="2" placeholder="궁금한 점을 한국어로 물어보세요"></textarea>
+      <button class="chip primary" id="ask-send" type="submit">보내기</button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const STORE = 'mi.sessions.v1', PREF = 'mi.prefs.v1', PENDING = 'mi.oauth.pending';
+  const HAIKU = 'claude-haiku-5-5', SONNET = 'claude-sonnet-5-5';
+  // Sign in with ChatGPT — open-source client flow (developers.openai.com/siwc)
+  const AUTH = 'https://auth.openai.com/api/accounts/authorize';
+  const TOKEN = 'https://auth.openai.com/api/accounts/oauth/token';
+  const OIDC = 'https://auth.openai.com/.well-known/openid-configuration';
+  const RES = 'https://api.openai.com/v1';
+  const REDIR = 'http://127.0.0.1:1455/auth/callback';
+  const SCOPE = 'openid profile email offline_access resource.invoke chatgpt.tokens.use.direct';
+  const AGENT = 'Meeting Interpreter Notes';
+
+  // ---------- storage ----------
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true } catch { return false } };
+  let sessions = load(STORE, []);
+  let prefs = Object.assign({ lang: 'en-US', engine: 'google', ai: 'gpt', key: '', fs: '17' }, load(PREF, {}));
+  const savePrefs = () => save(PREF, prefs);
+  let saveTimer;
+  const persist = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => {
+    if (!save(STORE, sessions)) toast('저장 공간이 부족해요. 오래된 기록을 내보낸 뒤 삭제해 주세요.');
+  }, 400) };
+
+  // ---------- helpers ----------
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const hhmm = t => new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const dur = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0') };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const plain = t => t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,4}\s*/gm, '');
+  let toastTimer;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3200) }
+
+  // ---------- ChatGPT sign-in ----------
+  // Tokens stay in memory only (the SIWC guide asks to keep them out of browser storage);
+  // the issued client_id, host id and email are not secrets and are remembered so re-login is one tap.
+  let gpt = null;   // { access, refresh, exp, clientId, email, models: [{slug, name}] }
+  const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const rand = n => b64u(crypto.getRandomValues(new Uint8Array(n)));
+  const jwt = t => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))));
+
+  async function gptAuthUrl() {
+    if (!prefs.hostId) { prefs.hostId = 'urn:uuid:' + crypto.randomUUID(); savePrefs() }
+    // reuse an attempt in progress so a pasted callback still matches after the sheet is reopened
+    const old = load(PENDING, null);
+    if (old?.url && Date.now() - old.at < 15 * 60e3 && old.clientId === (prefs.gptClientId || null)) return old.url;
+    const p = { state: rand(16), nonce: rand(16), verifier: rand(32), clientId: prefs.gptClientId || null, at: Date.now() };
+    const challenge = b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p.verifier)));
+    const q = { client_id: p.clientId || 'dynamic_agent_client', response_type: 'code', redirect_uri: REDIR, scope: SCOPE,
+      resource: RES, state: p.state, nonce: p.nonce, code_challenge_method: 'S256', code_challenge: challenge, ext_agent_host_id: prefs.hostId };
+    if (!p.clientId) q.agent_name_hint = AGENT; else if (prefs.gptEmail) q.login_hint = prefs.gptEmail;
+    p.url = AUTH + '?' + Object.entries(q).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
+    save(PENDING, p);
+    return p.url;
+  }
+
+  async function gptFinish(pasted) {
+    let u; try { u = new URL(pasted.trim()) } catch { throw new Error('주소 전체(http://127.0.0.1…)를 붙여넣어 주세요.') }
+    const sp = u.searchParams, P = load(PENDING, null);
+    if (sp.get('error')) throw new Error(sp.get('error') === 'access_denied' ? 'ChatGPT에서 허용하지 않았어요. 다시 시도해 주세요.' : '로그인 오류: ' + sp.get('error'));
+    if (!P || sp.get('state') !== P.state) throw new Error('이 로그인 요청과 맞지 않는 주소예요. 버튼을 다시 눌러 처음부터 해 주세요.');
+    if (P.clientId && sp.get('client_id') && sp.get('client_id') !== P.clientId) throw new Error('다른 등록 정보가 돌아왔어요. 다시 시도해 주세요.');
+    const clientId = P.clientId || sp.get('client_id');
+    if (!clientId || !sp.get('code')) throw new Error('등록이 끝나지 않았어요. 다시 시도해 주세요.');
+    const r = await fetch(TOKEN, { method: 'POST', body: new URLSearchParams({ grant_type: 'authorization_code', client_id: clientId,
+      code: sp.get('code'), code_verifier: P.verifier, redirect_uri: REDIR, resource: RES }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { localStorage.removeItem(PENDING); throw new Error(j.error === 'invalid_grant' ? '이미 쓴 주소예요. 버튼을 다시 눌러 새로 로그인해 주세요.' : '토큰 교환 실패: ' + (j.error_description || j.error || r.status)) }
+    const c = jwt(j.id_token), aud = [].concat(c.aud);
+    if (!String(c.iss).startsWith('https://auth.openai.com') || !aud.includes(clientId) || c.nonce !== P.nonce || c.exp * 1000 < Date.now())
+      throw new Error('로그인 응답을 확인하지 못했어요. 다시 시도해 주세요.');
+    if (prefs.gptSub && prefs.gptClientId === clientId && c.sub !== prefs.gptSub) throw new Error('다른 ChatGPT 계정이에요. 원래 계정으로 로그인해 주세요.');
+    const scopes = String(j.scope || sp.get('scope') || '').split(/[\s+]+/);
+    if (!scopes.includes('chatgpt.tokens.use.direct')) throw new Error('ChatGPT 플랜 사용 권한이 허용되지 않았어요. ChatGPT 설정에서 이 앱의 접근을 켠 뒤 다시 시도해 주세요.');
+    localStorage.removeItem(PENDING);
+    Object.assign(prefs, { gptClientId: clientId, gptEmail: c.email || '', gptSub: c.sub }); savePrefs();
+    gpt = { access: j.access_token, refresh: j.refresh_token, exp: Date.now() + (j.expires_in || 3600) * 1000, clientId, email: c.email || '', models: [] };
+    try { await gptModels() } catch {}
+  }
+
+  let refreshing = null;
+  function gptRefresh() {
+    return refreshing ||= (async () => {
+      const r = await fetch(TOKEN, { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', client_id: gpt.clientId, refresh_token: gpt.refresh, resource: RES }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { gpt = null; renderGptBox(); renderTags(); throw new Error('ChatGPT 로그인이 만료됐어요. 설정에서 다시 연결해 주세요.') }
+      gpt.access = j.access_token; if (j.refresh_token) gpt.refresh = j.refresh_token;
+      gpt.exp = Date.now() + (j.expires_in || 3600) * 1000;
+    })().finally(() => refreshing = null);
+  }
+  async function gptFetch(path, init = {}, retry = true) {
+    if (!gpt) throw new Error('ChatGPT가 연결되지 않았어요. 설정에서 로그인해 주세요.');
+    if (Date.now() > gpt.exp - 60e3) await gptRefresh();
+    const r = await fetch(RES + path, { ...init, headers: { ...(init.headers || {}), authorization: 'Bearer ' + gpt.access } });
+    if (r.status === 401 && retry) { await gptRefresh(); return gptFetch(path, init, false) }
+    return r;
+  }
+  async function gptModels() {
+    const j = await (await gptFetch('/models')).json();
+    const list = (j.models || []).filter(m => m.visibility === 'list').map(m => ({ slug: m.slug, name: m.display_name || m.slug }));
+    gpt.models = list.length ? list : (j.data || []).map(m => ({ slug: m.id, name: m.id }));
+    const has = s => gpt.models.some(m => m.slug === s);
+    if (!has(prefs.gptModel)) prefs.gptModel = gpt.models[0]?.slug;
+    if (!has(prefs.gptFast)) prefs.gptFast = (gpt.models.find(m => /mini|fast|instant/i.test(m.slug)) || gpt.models[0])?.slug;
+    savePrefs();
+  }
+  const GPT_ERR = {
+    subscription_sharing_usage_limit_exceeded: 'ChatGPT 플랜 사용 한도에 도달했어요. 잠시 후 다시 시도하거나 Claude/Google로 바꿔 주세요.',
+    subscription_sharing_usage_unavailable: '이 계정에서는 지금 ChatGPT 플랜 사용이 불가해요.'
+  };
+  async function gptCall(instructions, user, model, onText) {
+    const r = await gptFetch('/responses', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model, instructions, input: [{ role: 'user', content: user }], store: false, stream: true }) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); const code = j.error?.code;
+      throw new Error(GPT_ERR[code] || j.error?.message || 'ChatGPT 오류 ' + r.status) }
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = '', text = '', done = false;
+    for (;;) {
+      const { value, done: end } = await reader.read(); if (end) break;
+      buf += dec.decode(value, { stream: true }).replace(/\r/g, '');
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const data = buf.slice(0, i).split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('\n');
+        buf = buf.slice(i + 2);
+        if (!data || data === '[DONE]') continue;
+        let ev; try { ev = JSON.parse(data) } catch { continue }
+        if (ev.type === 'response.output_text.delta') { text += ev.delta; onText?.(text) }
+        else if (ev.type === 'response.completed' || ev.type === 'response.incomplete') done = true;
+        else if (ev.type === 'response.failed') { const c = ev.response?.error?.code; throw new Error(GPT_ERR[c] || ev.response?.error?.message || 'ChatGPT 응답 실패') }
+        else if (ev.type === 'error') throw new Error(GPT_ERR[ev.code] || ev.message || 'ChatGPT 오류');
+      }
+    }
+    if (!done && !text) throw new Error('ChatGPT 응답이 중간에 끊겼어요.');
+    return text.trim();
+  }
+  async function gptSignOut() {
+    const g = gpt; gpt = null; renderGptBox(); renderTags();
+    try {
+      const { revocation_endpoint } = await (await fetch(OIDC)).json();
+      const r = await fetch(revocation_endpoint, { method: 'POST', body: new URLSearchParams({ token: g.refresh, token_type_hint: 'refresh_token', client_id: g.clientId }) });
+      toast(r.ok ? '로그아웃했어요.' : '이 폰에서는 로그아웃했지만 서버 해제는 확인하지 못했어요. ChatGPT 설정에서 앱 연결을 끊을 수 있어요.');
+    } catch { toast('이 폰에서는 로그아웃했지만 서버 해제는 확인하지 못했어요. ChatGPT 설정에서 앱 연결을 끊을 수 있어요.') }
+  }
+
+  // ---------- Claude ----------
+  async function claude(system, user, model = HAIKU, max = 1024) {
+    if (!prefs.key) throw new Error('Claude API 키가 없어요. 설정에서 입력해 주세요.');
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': prefs.key,
+        'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, max_tokens: max, system, messages: [{ role: 'user', content: user }] })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error?.message || 'Claude ' + r.status);
+    return j.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  }
+
+  // ---------- AI routing ----------
+  function provider() {
+    if (prefs.ai === 'gpt' && gpt) return 'gpt';
+    if (prefs.ai === 'claude' && prefs.key) return 'claude';
+    return gpt ? 'gpt' : prefs.key ? 'claude' : null;
+  }
+  async function ai({ instructions, user, fast = false, onText, prov = provider() }) {
+    if (!prov) throw new Error('AI가 연결되지 않았어요. 설정에서 ChatGPT로 로그인하거나 Claude 키를 넣어 주세요.');
+    if (prov === 'claude') { const t = await claude(instructions, user, fast ? HAIKU : SONNET, fast ? 1024 : 4000); onText?.(t); return t }
+    return gptCall(instructions, user, fast ? prefs.gptFast : prefs.gptModel, onText);
+  }
+
+  // ---------- translation ----------
+  async function google(text) {
+    const u = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=' + encodeURIComponent(text);
+    const r = await fetch(u); if (!r.ok) throw new Error('google ' + r.status);
+    const j = await r.json(); return j[0].map(x => x[0]).join('');
+  }
+  async function mymemory(text) {
+    const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|ko&q=' + encodeURIComponent(text.slice(0, 500)));
+    const j = await r.json(); if (j.responseStatus != 200) throw new Error('mymemory'); return j.responseData.translatedText;
+  }
+  const SYS_TR = 'You are a live interpreter at a business/academic meeting. Translate the English utterance into natural, concise Korean that a Korean listener understands instantly. The text comes from speech recognition and may contain misheard words; translate the intended meaning. Keep technical terms, names and numbers accurate; for a key technical term you may add the English in parentheses once. Output only the Korean translation.';
+  const trEngine = () => prefs.engine === 'gpt' && gpt ? 'gpt' : prefs.engine === 'claude' && prefs.key ? 'claude' : 'google';
+  async function translate(text, context) {
+    const eng = trEngine();
+    if (eng !== 'google') {
+      const ctx = context.length ? 'Earlier in the meeting:\n' + context.join('\n') + '\n\n' : '';
+      try { return await ai({ instructions: SYS_TR, user: ctx + 'Translate this utterance:\n' + text, fast: true, prov: eng }) }
+      catch (e) { toast(e.message + ' · Google 번역으로 대신해요') }
+    }
+    try { return await google(text) } catch { return mymemory(text) }
+  }
+  function renderTags() {
+    $('#lang-tag').textContent = prefs.lang;
+    $('#engine-tag').textContent = { google: 'Google', gpt: 'ChatGPT', claude: 'Claude' }[trEngine()];
+  }
+
+  // ---------- live state ----------
+  let cur = null;               // current session object
+  let rec = null, running = false, activeSince = 0, selId = null;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  function newSession() {
+    cur = { id: uid(), title: '', created: Date.now(), activeMs: 0, lang: prefs.lang, segs: [], words: [], chat: [], summary: '' };
+    sessions.unshift(cur); persist();
+  }
+  function curMs() { return cur ? cur.activeMs + (running ? Date.now() - activeSince : 0) : 0 }
+
+  function renderLive() {
+    $('#title').value = cur?.title || '';
+    $('#clock').textContent = dur(curMs());
+    renderTags();
+    const en = $('#en-list'), ko = $('#ko-list');
+    if (!cur || !cur.segs.length) {
+      en.innerHTML = SR
+        ? '<div class="empty">아래 <b>빨간 버튼</b>을 누르면 영어를 듣기 시작해요. 들은 문장은 여기에, 번역은 아래에 쌓입니다.<br>모르는 <b>단어를 탭</b>하면 뜻을 보고 단어장에 저장할 수 있어요.</div>'
+        : '<div class="empty err">이 브라우저는 음성 인식을 지원하지 않아요. 안드로이드는 Chrome, 아이폰은 Safari로 열어 주세요.</div>';
+      ko.innerHTML = '<div class="empty">문장마다 한국어 번역이 여기에 나와요. 미팅 중 궁금한 건 오른쪽 아래 <b>질문</b>으로 바로 물어보세요.</div>';
+      return;
+    }
+    en.innerHTML = cur.segs.map(enHTML).join('');
+    ko.innerHTML = cur.segs.map(koHTML).join('');
+  }
+  const words = t => esc(t).split(/(\s+)/).map(p => /\S/.test(p) ? '<span class="w">' + p + '</span>' : p).join('');
+  const enHTML = s => `<span class="seg${s.id === selId ? ' sel' : ''}" data-id="${s.id}"><time>${hhmm(s.t)}</time>${words(s.en)}</span>`;
+  const koHTML = s => `<span class="seg${s.id === selId ? ' sel' : ''}${s.ko ? '' : ' pending'}" data-id="${s.id}"><time>${hhmm(s.t)}</time>${
+    s.ko ? esc(s.ko) : s.err ? '<span class="err">번역 실패 · 탭해서 다시 시도</span>' : '번역 중…'}</span>`;
+
+  const nearBottom = el => el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  function appendSeg(s) {
+    const es = $('#en-scroll'), ks = $('#ko-scroll');
+    const sticky = [nearBottom(es), nearBottom(ks)];
+    if (cur.segs.length === 1) { $('#en-list').innerHTML = ''; $('#ko-list').innerHTML = '' }
+    $('#en-list').insertAdjacentHTML('beforeend', enHTML(s));
+    $('#ko-list').insertAdjacentHTML('beforeend', koHTML(s));
+    if (sticky[0]) es.scrollTop = es.scrollHeight;
+    if (sticky[1]) ks.scrollTop = ks.scrollHeight;
+  }
+  function updateKo(s) {
+    const el = $('#ko-list').querySelector(`[data-id="${s.id}"]`); if (!el) return;
+    const ks = $('#ko-scroll'), stick = nearBottom(ks);
+    el.outerHTML = koHTML(s); if (stick) ks.scrollTop = ks.scrollHeight;
+  }
+
+  async function translateSeg(s) {
+    s.err = false;
+    const i = cur.segs.indexOf(s);
+    const ctx = cur.segs.slice(Math.max(0, i - 4), i).map(x => x.en);
+    try { s.ko = await translate(s.en, ctx) } catch (e) { s.err = true; toast(e.message) }
+    if (cur && cur.segs.includes(s)) updateKo(s);
+    persist();
+  }
+  function addFinal(text) {
+    text = text.trim(); if (!text) return;
+    const last = cur.segs[cur.segs.length - 1];
+    if (last && last.en.toLowerCase() === text.toLowerCase() && Date.now() - last.t < 4000) return; // Android duplicate
+    const s = { id: uid(), t: Date.now(), en: text.charAt(0).toUpperCase() + text.slice(1), ko: '' };
+    cur.segs.push(s); appendSeg(s); persist(); translateSeg(s);
+  }
+
+  // ---------- speech recognition ----------
+  function makeRec() {
+    const r = new SR();
+    r.lang = prefs.lang; r.interimResults = true; r.continuous = !isAndroid; r.maxAlternatives = 1;
+    r.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        if (res.isFinal) addFinal(res[0].transcript); else interim += res[0].transcript;
+      }
+      $('#interim').textContent = interim;
+      if (interim) { const es = $('#en-scroll'); if (nearBottom(es)) es.scrollTop = es.scrollHeight }
+    };
+    r.onerror = e => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        stop(); hint('마이크 권한이 막혀 있어요. 주소창 왼쪽 자물쇠 → 마이크 허용 후 다시 눌러 주세요.');
+      } else if (e.error === 'network') hint('인식 서버 연결이 불안정해요. 다시 연결하는 중…');
+    };
+    r.onend = () => { $('#interim').textContent = ''; if (running) setTimeout(() => { if (running) try { r.start() } catch {} }, 200) };
+    return r;
+  }
+  let wake = null;
+  async function lockScreen() { try { wake = await navigator.wakeLock?.request('screen') } catch {} }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && running) { lockScreen(); try { rec.start() } catch {} }
+  });
+  function hint(t) { $('#hint').textContent = t }
+
+  function start() {
+    if (!SR) { toast('이 브라우저는 음성 인식을 지원하지 않아요.'); return }
+    if (!cur) newSession();
+    if (cur.title !== $('#title').value) cur.title = $('#title').value;
+    rec = makeRec(); running = true; activeSince = Date.now();
+    try { rec.start() } catch {}
+    lockScreen();
+    document.body.classList.add('rec-on'); $('#btn-rec').setAttribute('aria-label', '녹음 일시정지');
+    hint('듣는 중 · 화면을 켜 둔 채로 두세요');
+    if (!cur.segs.length) renderLive();
+  }
+  function stop() {
+    if (!running) return;
+    running = false; cur.activeMs += Date.now() - activeSince;
+    try { rec.stop() } catch {}
+    wake?.release?.().catch(() => {}); wake = null;
+    document.body.classList.remove('rec-on'); $('#btn-rec').setAttribute('aria-label', '녹음 시작');
+    hint(cur.segs.length ? '일시정지됨 · 다시 누르면 이어서 기록해요' : '');
+    $('#interim').textContent = ''; persist();
+  }
+  setInterval(() => { if (running) $('#clock').textContent = dur(curMs()) }, 1000);
+
+  $('#btn-rec').onclick = () => running ? stop() : start();
+  $('#btn-new').onclick = () => {
+    stop();
+    if (cur && !cur.segs.length && !cur.chat?.length) { sessions = sessions.filter(x => x !== cur); persist() }
+    cur = null; selId = null; hint(''); renderLive(); toast('새 미팅을 시작할 준비가 됐어요.');
+  };
+  $('#title').oninput = e => { if (!cur) newSession(); cur.title = e.target.value; persist() };
+
+  // tap: select pair, look up word, retry failed translation
+  function onPaneTap(e, other) {
+    const seg = e.target.closest('.seg'); if (!seg) return;
+    const s = cur?.segs.find(x => x.id === seg.dataset.id); if (!s) return;
+    if (s.err && e.currentTarget.id === 'ko-scroll') { s.err = false; updateKo(s); translateSeg(s); return }
+    const w = e.target.closest('.w');
+    if (w) { lookup(w.textContent, s.en); return }
+    selId = selId === s.id ? null : s.id;
+    document.querySelectorAll('#v-live .seg').forEach(x => x.classList.toggle('sel', x.dataset.id === selId));
+    const twin = $(other).querySelector(`[data-id="${s.id}"]`);
+    twin?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  $('#en-scroll').onclick = e => onPaneTap(e, '#ko-scroll');
+  $('#ko-scroll').onclick = e => onPaneTap(e, '#en-scroll');
+
+  // ---------- word lookup ----------
+  let lookingUp = null;
+  async function lookup(raw, sentence) {
+    const word = raw.replace(/^[^\w']+|[^\w']+$/g, ''); if (!word) return;
+    lookingUp = { word, sentence, meaning: '' };
+    $('#w-word').textContent = word; $('#w-ctx').textContent = '“' + sentence + '”';
+    $('#w-mean').textContent = '찾는 중…'; $('#w-save').disabled = true; open('#s-word');
+    const mine = lookingUp;
+    try {
+      const m = provider()
+        ? plain(await ai({ instructions: 'You explain English words to a Korean professional during a meeting. Given a word and the sentence it was heard in, reply in Korean in at most 2 short lines, plain text: line 1 = the meaning in this context (Korean equivalent), line 2 = a brief usage note or common collocation if useful. No preamble.',
+            user: `Word: ${word}\nSentence: ${sentence}`, fast: true }))
+        : await google(word).catch(() => mymemory(word));
+      if (lookingUp !== mine) return;
+      mine.meaning = m; $('#w-mean').textContent = m; $('#w-save').disabled = false;
+    } catch (e) { $('#w-mean').textContent = '찾지 못했어요: ' + e.message }
+  }
+  $('#w-save').onclick = () => {
+    if (!lookingUp) return;
+    if (!cur) newSession();
+    if (!cur.words.some(w => w.word.toLowerCase() === lookingUp.word.toLowerCase())) {
+      cur.words.push({ word: lookingUp.word, meaning: lookingUp.meaning, sentence: lookingUp.sentence }); persist();
+    }
+    close('#s-word'); toast(`“${lookingUp.word}” 저장됨`);
+  };
+
+  // ---------- ask ----------
+  const SYS_ASK = 'You are the private assistant of a Korean graduate researcher/professional who is attending an English meeting right now (or reviewing one). You see the speech-recognition transcript (it may contain misheard words). Answer in Korean, short and easy to read on a phone, plain text with "- " bullets when useful, no markdown headers or bold. Ground answers in the transcript and cite timestamps like (14:02) when pointing to a moment. If something was not said, say so. For general questions (terms, background) you may use your own knowledge, marked as 일반 지식. When asked to say something in English, give 2 natural spoken options suited to the meeting tone, each with a Korean gloss.';
+  let askS = null;
+  function transcript(s, limit = 60000) {
+    let t = s.segs.map(x => `[${hhmm(x.t)}] ${x.en}`).join('\n');
+    return t.length > limit ? '(앞부분 생략)\n' + t.slice(-limit) : t;
+  }
+  function openAsk(s) {
+    askS = s; renderThread(); open('#s-ask');
+  }
+  function renderThread() {
+    const T = $('#thread'), chat = askS?.chat || [], p = provider();
+    $('#ask-who').textContent = p ? (p === 'gpt' ? 'ChatGPT' : 'Claude') : '연결 안 됨';
+    if (!p) {
+      T.innerHTML = '<div class="empty">질문하려면 AI 연결이 필요해요. <b>설정 → ChatGPT로 계속하기</b>로 로그인하세요 (앱을 새로 열 때마다 10초 정도 걸리는 재연결이 필요해요).</div><div><button class="chip primary" id="ask-setup">설정 열기</button></div>';
+      $('#ask-setup').onclick = () => { close('#s-ask'); openSettings() };
+      return;
+    }
+    T.innerHTML = chat.length
+      ? chat.map(m => `<div class="msg q">${esc(m.q)}</div><div class="msg a${m.err ? ' err' : ''}">${esc(m.a || '생각 중…')}</div>`).join('')
+      : `<div class="empty">${askS && askS.segs.length ? '지금까지 들은 ' + askS.segs.length + '문장을 바탕으로 답해요.' : '아직 들은 내용이 없어요. 녹음을 시작하면 그 내용을 바탕으로 답해요.'} 아래 버튼을 누르거나 직접 물어보세요.</div>`;
+    T.scrollTop = T.scrollHeight;
+  }
+  async function ask(q) {
+    q = q.trim(); if (!q) return;
+    if (!provider()) { renderThread(); return }
+    if (!askS) { if (!cur) newSession(); askS = cur }
+    (askS.chat ||= []);
+    const prev = askS.chat.filter(m => !m.err).slice(-6).map(m => `Q: ${m.q}\nA: ${m.a}`).join('\n\n');
+    const m = { q, a: '', t: Date.now() }; askS.chat.push(m); renderThread();
+    const user = `Meeting: ${titleOf(askS)}\nCurrent time: ${hhmm(Date.now())}\n\nTranscript so far:\n${transcript(askS) || '(nothing recorded yet)'}\n\n${prev ? 'Earlier Q&A in this meeting:\n' + prev + '\n\n' : ''}Question: ${q}`;
+    const bubble = () => [...$('#thread').querySelectorAll('.msg.a')].pop();
+    try {
+      m.a = plain(await ai({ instructions: SYS_ASK, user, onText: t => { const b = bubble(); if (b) { b.textContent = plain(t); const T = $('#thread'); T.scrollTop = T.scrollHeight } } }));
+    } catch (e) { m.a = e.message; m.err = true }
+    renderThread(); persist();
+  }
+  $('#ask-form').onsubmit = e => { e.preventDefault(); const v = $('#ask-input').value; $('#ask-input').value = ''; ask(v) };
+  $('#ask-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#ask-form').requestSubmit() } });
+  $('#quick').onclick = e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    if (b.dataset.fill) { const i = $('#ask-input'); i.value = b.dataset.fill; i.focus(); return }
+    ask(b.dataset.q);
+  };
+  $('#btn-ask').onclick = () => openAsk(cur);
+
+  // ---------- sheets ----------
+  function open(id) { $(id).hidden = false }
+  function close(id) { $(id).hidden = true }
+  document.querySelectorAll('.scrim').forEach(s => s.addEventListener('click', e => {
+    if (e.target === s || e.target.closest('[data-close]')) s.hidden = true;
+  }));
+
+  async function renderGptBox() {
+    const B = $('#gpt-box');
+    if (gpt) {
+      const opts = sel => (gpt.models || []).map(m => `<option value="${esc(m.slug)}"${m.slug === sel ? ' selected' : ''}>${esc(m.name)}</option>`).join('');
+      B.innerHTML = `<div class="status"><i></i>연결됨 · ${esc(gpt.email || 'ChatGPT')}</div>
+        ${gpt.models.length ? `<label class="field">질문·분석 모델<select id="opt-model">${opts(prefs.gptModel)}</select></label>
+        <label class="field">번역·단어 풀이 모델 (빠른 모델 추천)<select id="opt-fast">${opts(prefs.gptFast)}</select></label>` : '<div class="note">모델 목록을 불러오지 못했어요.</div>'}
+        <div class="row" style="justify-content:flex-start"><button class="chip danger" id="gpt-out">로그아웃</button></div>`;
+      $('#gpt-out').onclick = gptSignOut;
+      $('#opt-model') && ($('#opt-model').onchange = e => { prefs.gptModel = e.target.value; savePrefs() });
+      $('#opt-fast') && ($('#opt-fast').onchange = e => { prefs.gptFast = e.target.value; savePrefs() });
+      return;
+    }
+    B.innerHTML = `<ol class="steps">
+        <li><b>ChatGPT로 계속하기</b>를 눌러 로그인하고 허용하세요.</li>
+        <li>마지막에 <b>“사이트에 연결할 수 없음”</b> 화면이 나오면 정상이에요. 그 화면 <b>주소창의 주소 전체</b>를 복사하세요.</li>
+        <li>이 앱으로 돌아와 아래 칸에 붙여넣고 <b>연결</b>을 누르세요.</li>
+      </ol>
+      <div class="row" style="justify-content:flex-start"><a class="chip primary" id="gpt-login" target="_blank" rel="noopener" href="#">ChatGPT로 계속하기</a></div>
+      <input class="paste" id="gpt-paste" placeholder="http://127.0.0.1:1455/auth/callback?code=…" autocomplete="off" inputmode="url">
+      <div class="row" style="justify-content:flex-start"><button class="chip" id="gpt-done">연결</button></div>
+      <div class="note">${prefs.gptClientId ? '이전에 등록한 계정이라 두 번째부터는 계정 선택만 하면 돼요. ' : ''}보안을 위해 로그인 토큰은 저장하지 않아요. 앱을 새로 열면 다시 연결해 주세요.</div>`;
+    const a = $('#gpt-login');
+    a.setAttribute('aria-disabled', 'true');
+    a.href = await gptAuthUrl(); a.removeAttribute('aria-disabled');
+    $('#gpt-done').onclick = async () => {
+      const b = $('#gpt-done'); b.disabled = true; b.textContent = '연결 중…';
+      try { await gptFinish($('#gpt-paste').value); toast('ChatGPT 연결 완료'); renderGptBox(); renderTags() }
+      catch (e) { toast(e.message); b.disabled = false; b.textContent = '연결'; if (!load(PENDING, null)) $('#gpt-login').href = await gptAuthUrl() }
+    };
+  }
+  function openSettings() {
+    $('#opt-lang').value = prefs.lang; $('#opt-engine').value = prefs.engine; $('#opt-key').value = prefs.key;
+    $('#opt-fs').value = prefs.fs; $('#opt-ai').value = prefs.ai;
+    renderGptBox(); open('#s-settings');
+  }
+  $('#btn-settings').onclick = openSettings;
+  $('#btn-settings-live').onclick = openSettings;
+  ['#opt-lang', '#opt-engine', '#opt-key', '#opt-fs', '#opt-ai'].forEach(id => $(id).addEventListener('change', () => {
+    const langChanged = prefs.lang !== $('#opt-lang').value;
+    Object.assign(prefs, { lang: $('#opt-lang').value, engine: $('#opt-engine').value, key: $('#opt-key').value.trim(), fs: $('#opt-fs').value, ai: $('#opt-ai').value });
+    savePrefs(); applyPrefs(langChanged);
+    if (prefs.engine === 'gpt' && !gpt) toast('ChatGPT 번역은 위에서 로그인해야 켜져요. 그 전엔 Google 번역을 써요.');
+    if (prefs.engine === 'claude' && !prefs.key) toast('Claude 번역을 쓰려면 API 키를 입력해 주세요.');
+  }));
+  function applyPrefs(restart) {
+    document.documentElement.style.setProperty('--fs', prefs.fs + 'px');
+    renderTags();
+    if (restart && running) { try { rec.onend = null; rec.stop() } catch {} rec = makeRec(); try { rec.start() } catch {} }
+  }
+
+  // ---------- views ----------
+  function go(v) {
+    ['live', 'history', 'detail'].forEach(x => $('#v-' + x).hidden = x !== v);
+    if (v === 'history') renderHistory();
+    if (v === 'live') renderLive();
+  }
+  document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  $('#btn-history').onclick = () => go('history');
+
+  const titleOf = s => s.title || new Date(s.created).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) + ' 미팅';
+  const when = s => new Date(s.created).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+
+  function renderHistory() {
+    const L = $('#history-list');
+    const list = sessions.filter(s => s.segs.length || s.chat?.length || s === cur);
+    if (!list.length) { L.innerHTML = '<div class="empty">아직 저장된 미팅이 없어요. 녹음을 시작하면 미팅마다 따로 기록되고, 여기서 원문·번역·단어장·질문·AI 분석을 다시 볼 수 있어요.</div>'; return }
+    L.innerHTML = list.map(s => `<button class="card" data-id="${s.id}">
+      <strong>${esc(titleOf(s))}${s === cur && running ? ' · 녹음 중' : ''}</strong>
+      <span class="meta">${when(s)} · ${dur(s === cur ? curMs() : s.activeMs)} · ${s.segs.length}문장${s.words.length ? ' · 단어 ' + s.words.length : ''}${s.chat?.length ? ' · 질문 ' + s.chat.length : ''}${s.summary ? ' · 분석됨' : ''}</span>
+      ${s.segs[0] ? `<p>${esc(s.segs[0].en)}</p>` : ''}</button>`).join('');
+    L.querySelectorAll('.card').forEach(c => c.onclick = () => showDetail(c.dataset.id));
+  }
+
+  let detailId = null, confirmDel = false;
+  function showDetail(id) {
+    detailId = id; confirmDel = false; go('detail'); renderDetail();
+  }
+  function renderDetail() {
+    const s = sessions.find(x => x.id === detailId); if (!s) return go('history');
+    $('#d-title').textContent = titleOf(s);
+    const chat = (s.chat || []).filter(m => !m.err);
+    $('#detail').innerHTML = `
+      <span class="meta">${when(s)} · ${dur(s === cur ? curMs() : s.activeMs)} · ${s.segs.length}문장 · ${s.lang || 'en-US'}</span>
+      <div class="tools">
+        <button class="chip primary" id="d-ask">이 미팅에 질문하기</button>
+        <button class="chip" id="d-resume">이어서 녹음</button>
+        <button class="chip" id="d-md">Markdown 저장</button>
+        <button class="chip" id="d-copy">전체 복사</button>
+        <button class="chip" id="d-json">JSON 저장</button>
+        <button class="chip danger" id="d-del">${confirmDel ? '정말 삭제할까요? 한 번 더 누르기' : '삭제'}</button>
+      </div>
+      <div class="sec"><h3>AI 분석</h3>
+        ${s.summary ? `<div class="summary">${esc(s.summary)}</div>` : `<div class="empty" style="padding:0 0 8px">요약, 결정사항, 해야 할 일, 다시 확인할 부분, 핵심 용어를 한국어로 정리해요. ChatGPT 로그인이나 Claude 키가 필요해요.</div>`}
+        <div class="tools" style="margin-top:8px"><button class="chip" id="d-ai" ${s.segs.length ? '' : 'disabled'}>${s.summary ? '다시 분석' : '분석하기'}</button></div>
+      </div>
+      ${chat.length ? `<div class="sec"><h3>질문 기록 · ${chat.length}</h3>${chat.map(m => `<div class="pair"><div class="e" style="font-family:var(--f-ko);font-size:14.5px;font-weight:600">Q. ${esc(m.q)}</div><div class="summary" style="margin-top:4px">${esc(m.a)}</div></div>`).join('')}</div>` : ''}
+      ${s.words.length ? `<div class="sec"><h3>단어장 · ${s.words.length}</h3><dl class="words">${s.words.map(w => `<dt>${esc(w.word)}</dt><dd>${esc(w.meaning)}</dd>`).join('')}</dl></div>` : ''}
+      <div class="sec"><h3>대화 기록</h3>
+        ${s.segs.map(x => `<div class="pair"><div class="e"><span class="meta">${hhmm(x.t)}</span> ${esc(x.en)}</div><div class="k">${esc(x.ko || '(번역 없음)')}</div></div>`).join('') || '<div class="empty">기록된 문장이 없어요.</div>'}
+      </div>`;
+    $('#d-ask').onclick = () => openAsk(s);
+    $('#d-resume').onclick = () => { if (cur !== s) { stop(); cur = s } go('live'); setTimeout(() => { $('#en-scroll').scrollTop = 1e9; $('#ko-scroll').scrollTop = 1e9 }, 0) };
+    $('#d-md').onclick = () => fileOut(s, 'md');
+    $('#d-json').onclick = () => fileOut(s, 'json');
+    $('#d-copy').onclick = async () => { try { await navigator.clipboard.writeText(toMd(s)); toast('복사했어요') } catch { toast('복사할 수 없어요. Markdown 저장을 써 주세요.') } };
+    $('#d-del').onclick = () => {
+      if (!confirmDel) { confirmDel = true; renderDetail(); return }
+      if (s === cur) { stop(); cur = null }
+      sessions = sessions.filter(x => x !== s); persist(); go('history'); toast('삭제했어요');
+    };
+    $('#d-ai').onclick = () => analyze(s);
+  }
+
+  function toMd(s) {
+    let o = `# ${titleOf(s)}\n\n- 일시: ${when(s)}\n- 녹음 시간: ${dur(s.activeMs)}\n- 문장 수: ${s.segs.length}\n\n`;
+    if (s.summary) o += `## AI 분석\n\n${s.summary}\n\n`;
+    const chat = (s.chat || []).filter(m => !m.err);
+    if (chat.length) o += `## 질문 기록\n\n${chat.map(m => `**Q. ${m.q}**\n\n${m.a}`).join('\n\n')}\n\n`;
+    if (s.words.length) o += `## 단어장\n\n${s.words.map(w => `- **${w.word}** — ${w.meaning.replace(/\n/g, ' ')}`).join('\n')}\n\n`;
+    o += `## 대화 기록\n\n` + s.segs.map(x => `**[${hhmm(x.t)}]** ${x.en}\n> ${x.ko || ''}`).join('\n\n') + '\n';
+    return o;
+  }
+  async function fileOut(s, ext) {
+    const name = (titleOf(s).replace(/[\\/:*?"<>|]/g, '').trim() || 'meeting') + '_' + new Date(s.created).toISOString().slice(0, 10) + '.' + ext;
+    const body = ext === 'md' ? toMd(s) : JSON.stringify(s, null, 2);
+    const file = new File([body], name, { type: ext === 'md' ? 'text/markdown' : 'application/json' });
+    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: name }); return } catch (e) { if (e.name === 'AbortError') return } }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  async function analyze(s) {
+    if (!provider()) { toast('설정에서 ChatGPT로 로그인하거나 Claude 키를 넣어 주세요.'); return }
+    const b = $('#d-ai'); b.disabled = true; b.textContent = '분석 중…';
+    try {
+      s.summary = plain(await ai({
+        instructions: 'You analyze an English meeting transcript (from speech recognition, may contain misheard words) for a Korean graduate researcher/professional who attended. Write in Korean, plain text with simple section headers on their own line and "- " bullets, no markdown bold or tables. Sections, in order: 한 줄 요약 / 주요 내용 / 결정된 사항 / 해야 할 일 (누가·무엇을·언제, if stated) / 다시 확인할 부분 (unclear or likely misheard parts, with timestamps) / 핵심 용어 (English term — Korean meaning, 5-12 items). Be specific and faithful; do not invent facts.',
+        user: `Meeting title: ${titleOf(s)}\n\nTranscript:\n${transcript(s, 150000)}`,
+        onText: t => { if (detailId === s.id) { const el = $('#detail .summary'); if (el) el.textContent = plain(t) } }
+      }));
+      persist();
+    } catch (e) { toast(e.message) }
+    if (detailId === s.id) renderDetail();
+  }
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  applyPrefs(false); renderLive();
+  // reopen the most recent unfinished session (e.g., after the browser reloaded mid-meeting)
+  const latest = sessions[0];
+  if (latest && Date.now() - latest.created < 3 * 3600e3 && latest.segs.length) { cur = latest; renderLive(); hint('이전 미팅을 불러왔어요 · 버튼을 누르면 이어서 기록해요') }
+})();
+</script>
+</body>
+</html>
