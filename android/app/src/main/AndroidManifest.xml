@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ <uses-permission android:name="android.permission.INTERNET" />
+ <uses-permission android:name="android.permission.RECORD_AUDIO" />
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+ <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+ <uses-permission android:name="android.permission.WAKE_LOCK" />
+ <queries>
+  <intent><action android:name="android.speech.RecognitionService" /></intent>
+  <intent><action android:name="android.intent.action.SEND_MULTIPLE" /><data android:mimeType="*/*" /></intent>
+ </queries>
+ <application
+  android:label="미팅 통역 노트"
+  android:icon="@mipmap/ic_launcher"
+  android:roundIcon="@mipmap/ic_launcher"
+  android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+  android:allowBackup="false">
+  <activity
+   android:name=".MainActivity"
+   android:exported="true"
+   android:launchMode="singleTask"
+   android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+   android:windowSoftInputMode="adjustResize">
+   <intent-filter>
+    <action android:name="android.intent.action.MAIN" />
+    <category android:name="android.intent.category.LAUNCHER" />
+   </intent-filter>
+  </activity>
+  <service
+   android:name=".RecorderService"
+   android:exported="false"
+   android:foregroundServiceType="microphone" />
+  <provider
+   android:name="androidx.core.content.FileProvider"
+   android:authorities="com.hm.meetingnote.files"
+   android:exported="false"
+   android:grantUriPermissions="true">
+   <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/share_paths" />
+  </provider>
+ </application>
+</manifest>
