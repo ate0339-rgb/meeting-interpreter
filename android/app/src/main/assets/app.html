@@ -15,20 +15,23 @@
   <!-- LIVE -->
   <section class="view" id="v-live">
     <div class="top">
-      <input id="title" placeholder="미팅 제목" autocomplete="off">
+      <div class="title-wrap">
+        <span class="brand">미팅 통역 노트</span>
+        <input id="title" placeholder="미팅 제목을 입력하세요" autocomplete="off">
+      </div>
       <span class="clock"><span class="dot"></span><span id="clock">00:00</span></span>
       <button class="icon" id="btn-settings-live" aria-label="설정" title="설정">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     </div>
     <div class="pane en">
-      <h2><span>English · 들은 내용</span><span id="lang-tag">en-US</span></h2>
+      <h2><span class="tag">EN</span><span class="label">들은 내용</span><span class="sub" id="lang-tag">en-US</span></h2>
       <div class="scroll" id="en-scroll">
         <div id="en-list"></div>
         <div class="interim" id="interim"></div>
       </div>
     </div>
     <div class="pane ko">
-      <h2><span>한국어 번역</span><span>GOOGLE</span></h2>
+      <h2><span class="tag">KO</span><span class="label">한국어 번역</span><span class="sub">Google</span></h2>
       <div class="scroll" id="ko-scroll"><div id="ko-list"></div></div>
     </div>
     <div class="hint" id="hint"></div>

@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Bundle;
@@ -49,13 +48,13 @@ public class MainActivity extends Activity {
   android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
   frame.addView(web);
   setContentView(frame);
-  boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-  int bg = night ? 0xFF11171D : 0xFFF2F4F6;
+  // the page has one bright theme, so the window and system bars always match it
+  int bg = 0xFFEDF1F7;
   web.setBackgroundColor(bg);
   getWindow().getDecorView().setBackgroundColor(bg);
   WindowInsetsController wic = getWindow().getInsetsController();
-  if (wic != null) wic.setSystemBarsAppearance(night ? 0 : WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
-   WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+  int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+  if (wic != null) wic.setSystemBarsAppearance(light, light);
   // keep the page clear of the status bar, navigation bar and keyboard (WebView ignores its own padding)
   frame.setBackgroundColor(bg);
   frame.setOnApplyWindowInsetsListener((v, insets) -> {
